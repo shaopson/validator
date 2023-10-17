@@ -70,8 +70,8 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 	for flag, param := range flags {
 		v := Validation{
 			Validations: validations,
-			Field:       fieldTyp,
-			Value:       structVal.Field(index),
+			StructField: fieldTyp,
+			Field:       structVal.Field(index),
 			Struct:      structVal,
 			Flag:        flag,
 			Param:       param,
@@ -123,8 +123,8 @@ func (self *Engine) RegisterFeedbackHandler(flag string, handler FeedbackHandler
 
 type Validation struct {
 	Validations map[string]string
-	Field       reflect.StructField
-	Value       reflect.Value
+	StructField reflect.StructField
+	Field       reflect.Value
 	Struct      reflect.Value
 	Flag        string
 	Param       string

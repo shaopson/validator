@@ -3,7 +3,6 @@ package validator
 import (
 	"errors"
 	"fmt"
-	"github.com/dlclark/regexp2"
 	"net"
 	"reflect"
 	"regexp"
@@ -15,25 +14,31 @@ import (
 type Validator func(Validation) error
 
 var DefaultValidators = map[string]Validator{
-	"required": requiredValidator,
-	"len":      lenValidator,
-	"eq":       eqValidator,
-	"gt":       gtValidator,
-	"gte":      gteValidator,
-	"lt":       ltValidator,
-	"lte":      lteValidator,
-	"phone":    phoneValidator,
-	"email":    emailValidator,
-	"ip":       ipValidator,
-	"ipv4":     ipv4Validator,
-	"ipv6":     ipv6Validator,
-	"number":   numberValidator,
-	"lower":    lowerValidator,
-	"upper":    upperValidator,
-	"alpha":    alphaValidator,
-	"username": usernameValidator,
-	"password": passwordValidator,
-	"eq_field": eqfieldValidator,
+	"required":  requiredValidator,
+	"len":       lenValidator,
+	"eq":        eqValidator,
+	"gt":        gtValidator,
+	"gte":       gteValidator,
+	"lt":        ltValidator,
+	"lte":       lteValidator,
+	"phone":     phoneValidator,
+	"email":     emailValidator,
+	"ip":        ipValidator,
+	"ipv4":      ipv4Validator,
+	"ipv6":      ipv6Validator,
+	"number":    numberValidator,
+	"lower":     lowerValidator,
+	"upper":     upperValidator,
+	"alpha":     alphaValidator,
+	"username":  usernameValidator,
+	"password":  passwordValidator,
+	"eq_field":  eqfieldValidator,
+	"lt_field":  ltfieldValidator,
+	"lte_field": ltefieldValidator,
+	"gt_field":  gtfieldValidator,
+	"gte_field": gtefieldValidator,
+	"prefix":    prefixValidator,
+	"suffix":    suffixValidator,
 }
 
 var timeType = reflect.TypeOf(time.Time{})
@@ -106,6 +111,28 @@ func eqValidator(v Validation) error {
 		} else if v.Field.Float() == param {
 			return nil
 		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			var t time.Time
+			var err error
+			if strings.Contains(v.Param, ":") {
+				if t, err = time.Parse("2006-01-02 15:04:05", v.Param); err != nil {
+					panic(err)
+				}
+			} else if strings.Contains(v.Param, "-") { //2006-01-02
+				if t, err = time.Parse("2006-01-02", v.Param); err != nil {
+					panic(err)
+				}
+			} else {
+				panic(fmt.Sprintf("Invalid '%s' flag param:%s", v.Flag, v.Param))
+			}
+			value := v.Field.Interface().(time.Time)
+			if value.Equal(t) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 	}
@@ -162,6 +189,8 @@ func gtValidator(v Validation) error {
 			if value.After(t) {
 				return nil
 			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
@@ -219,6 +248,8 @@ func gteValidator(v Validation) error {
 			if value.After(t) || value.Equal(t) {
 				return nil
 			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
@@ -276,6 +307,8 @@ func ltValidator(v Validation) error {
 			if value.Before(t) {
 				return nil
 			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
@@ -333,6 +366,8 @@ func lteValidator(v Validation) error {
 			if value.Before(t) || value.Equal(t) {
 				return nil
 			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
@@ -464,43 +499,53 @@ func usernameValidator(v Validation) error {
 	return errors.New("username may contain only English letters, numbers, and @/./- characters")
 }
 
+/*
+var containNumAlphaRegx = regexp2.MustCompile("(?=.*[a-zA-Z])(?=.*\\d).+", 0)
+var containLowerUpperRegx = regexp2.MustCompile("(?=.*[a-z])(?=.*[A-Z]).+", 0)
+var containSymbolRegx = regexp2.MustCompile(".*[`~!@#$%^&*()\\-_=+[{\\]};:'\",<.>/?].*", 0)
+*/
+
 // password strength:
 // 1: contain number, letters
 // 2: contain number, lowercase, uppercase
 // 3: contain number, lowercase, uppercase, symbol
-var containNumAlphaRegx = regexp2.MustCompile("(?=.*[a-zA-Z])(?=.*\\d).+", 0)
-var containLowerUpperRegx = regexp2.MustCompile("(?=.*[a-z])(?=.*[A-Z]).+", 0)
-var containSymbolRegx = regexp2.MustCompile(".*[`~!@#$%^&*()\\-_=+[{\\]};:'\",<.>/?].*", 0)
-var passwordRegxs = []*regexp2.Regexp{
-	containNumAlphaRegx,
-	containLowerUpperRegx,
-	containSymbolRegx,
-}
-var passwordFeedbacks = []string{
-	"letters, numbers",
-	"uppercase and lowercase letters, numbers",
-	"uppercase and lowercase letters, numbers, symbols",
-}
+
+var containNumRegx = regexp.MustCompile("\\d+")
+var containAlphaRegx = regexp.MustCompile("[a-zA-Z]+")
+var containLowerRegx = regexp.MustCompile("[a-z]+")
+var containUpperRegx = regexp.MustCompile("[A-Z]+")
+var containSymbolRegx = regexp.MustCompile("[`~!@#$%^&*()\\-_=+[{\\]};:'\",<.>/?]+")
 
 func passwordValidator(v Validation) error {
 	if v.Field.Kind() != reflect.String {
 		panic(fmt.Sprintf("The '%s' validator only support 'string' type", v.Flag))
 	}
-	strength := len(passwordRegxs)
-	if v.Param != "" {
-		if i, err := strconv.Atoi(v.Param); err != nil {
-			panic(err)
-		} else {
-			strength = i
-		}
-	}
+	var err error
 	value := v.Field.String()
-	for i := 0; i < strength; i++ {
-		regx := passwordRegxs[i]
-		if ok, err := regx.MatchString(value); !ok || err != nil {
-			fmt.Println(err)
-			return errors.New("password may contain only " + passwordFeedbacks[strength-1])
+	switch v.Param {
+	case "3", "":
+		err = fmt.Errorf("password must contain uppercase and lowercase letters, numbers, symbols")
+		if !containSymbolRegx.MatchString(value) {
+			return err
 		}
+		fallthrough
+	case "2":
+		if err == nil {
+			fmt.Errorf("password must contain uppercase and lowercase letters, numbers")
+		}
+		if !containLowerRegx.MatchString(value) || !containUpperRegx.MatchString(value) {
+			return err
+		}
+		fallthrough
+	case "1":
+		if err == nil {
+			err = fmt.Errorf("password must contain letters and numbers")
+		}
+		if !containNumRegx.MatchString(value) || !containAlphaRegx.MatchString(value) {
+			return err
+		}
+	default:
+		panic(fmt.Sprintf("Invalid '%s' validator parma:%s", v.Flag, v.Param))
 	}
 	return nil
 }
@@ -527,17 +572,190 @@ func eqfieldValidator(v Validation) error {
 		if v.Field.Float() == target.Float() {
 			return nil
 		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			value := v.Field.Interface().(time.Time)
+			targetVal := target.Interface().(time.Time)
+			if value.Equal(targetVal) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
 	default:
 		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
 	}
-	return errors.New("field must be equal to " + v.Param)
+	return errors.New(fmt.Sprintf("field must be equal to field '%s'", v.Param))
 }
 
-//
-//lt field
-//lte field
-//gt field
-//gte field
-//prefix
-//suffix
-//url
+func ltfieldValidator(v Validation) error {
+	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
+		panic(fmt.Sprintf("The '%s' validator param error: field '%s' not found", v.Flag, v.Param))
+	}
+	target := v.Struct.FieldByName(v.Param)
+	switch v.Field.Kind() {
+	case reflect.String:
+		if v.Field.String() < target.String() {
+			return nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Field.Int() < target.Int() {
+			return nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Field.Uint() < target.Uint() {
+			return nil
+		}
+	case reflect.Float32, reflect.Float64:
+		if v.Field.Float() < target.Float() {
+			return nil
+		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			value := v.Field.Interface().(time.Time)
+			targetVal := target.Interface().(time.Time)
+			if value.Before(targetVal) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
+	default:
+		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+	}
+	return errors.New(fmt.Sprintf("field must be less than field '%s'", v.Param))
+}
+
+func ltefieldValidator(v Validation) error {
+	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
+		panic(fmt.Sprintf("The '%s' validator param error: field '%s' not found", v.Flag, v.Param))
+	}
+	target := v.Struct.FieldByName(v.Param)
+	switch v.Field.Kind() {
+	case reflect.String:
+		if v.Field.String() <= target.String() {
+			return nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Field.Int() <= target.Int() {
+			return nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Field.Uint() <= target.Uint() {
+			return nil
+		}
+	case reflect.Float32, reflect.Float64:
+		if v.Field.Float() <= target.Float() {
+			return nil
+		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			value := v.Field.Interface().(time.Time)
+			targetVal := target.Interface().(time.Time)
+			if value.Before(targetVal) || value.Equal(targetVal) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
+	default:
+		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+	}
+	return errors.New(fmt.Sprintf("field must be less than or equal to field '%s'", v.Param))
+}
+
+func gtfieldValidator(v Validation) error {
+	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
+		panic(fmt.Sprintf("The '%s' validator param error: field '%s' not found", v.Flag, v.Param))
+	}
+	target := v.Struct.FieldByName(v.Param)
+	switch v.Field.Kind() {
+	case reflect.String:
+		if v.Field.String() > target.String() {
+			return nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Field.Int() > target.Int() {
+			return nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Field.Uint() > target.Uint() {
+			return nil
+		}
+	case reflect.Float32, reflect.Float64:
+		if v.Field.Float() > target.Float() {
+			return nil
+		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			value := v.Field.Interface().(time.Time)
+			targetVal := target.Interface().(time.Time)
+			if value.After(targetVal) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
+	default:
+		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+	}
+	return errors.New(fmt.Sprintf("field must be greater than field '%s'", v.Param))
+}
+
+func gtefieldValidator(v Validation) error {
+	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
+		panic(fmt.Sprintf("The '%s' validator param error: field '%s' not found", v.Flag, v.Param))
+	}
+	target := v.Struct.FieldByName(v.Param)
+	switch v.Field.Kind() {
+	case reflect.String:
+		if v.Field.String() >= target.String() {
+			return nil
+		}
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+		if v.Field.Int() >= target.Int() {
+			return nil
+		}
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		if v.Field.Uint() >= target.Uint() {
+			return nil
+		}
+	case reflect.Float32, reflect.Float64:
+		if v.Field.Float() >= target.Float() {
+			return nil
+		}
+	case reflect.Struct:
+		if v.Field.CanConvert(timeType) {
+			value := v.Field.Interface().(time.Time)
+			targetVal := target.Interface().(time.Time)
+			if value.After(targetVal) || value.Equal(targetVal) {
+				return nil
+			}
+		} else {
+			panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+		}
+	default:
+		panic(fmt.Sprintf("The '%s' validator not support '%T' type", v.Flag, v.Field.Interface()))
+	}
+	return fmt.Errorf("field must be greater than field '%s'", v.Param)
+}
+
+func prefixValidator(v Validation) error {
+	if v.Field.Kind() != reflect.String {
+		panic(fmt.Sprintf("The '%s' validator only support 'string' type", v.Flag))
+	}
+	if strings.HasPrefix(v.Field.String(), v.Param) {
+		return nil
+	}
+	return fmt.Errorf("field must contain the string prefix '%s'", v.Param)
+}
+
+func suffixValidator(v Validation) error {
+	if v.Field.Kind() != reflect.String {
+		panic(fmt.Sprintf("The '%s' validator only support 'string' type", v.Flag))
+	}
+	if strings.HasPrefix(v.Field.String(), v.Param) {
+		return nil
+	}
+	return fmt.Errorf("field must contain the string suffix '%s'", v.Param)
+}

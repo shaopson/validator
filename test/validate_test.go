@@ -19,8 +19,8 @@ func TestValidate(t *testing.T) {
 	ti := time.Now()
 	form := UserForm{
 		UserName: "1234",
-		NickName: "123",
-		Password: "12dfdD",
+		NickName: "d1",
+		Password: "d1@D",
 		Age:      30,
 		BirthDay: ti,
 	}
@@ -34,5 +34,4 @@ func TestValidate(t *testing.T) {
 			t.Log(e.Map())
 		}
 	}
-
 }

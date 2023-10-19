@@ -11,7 +11,7 @@ type UserForm struct {
 	Password  string    `json:"Password" validate:"len:8-20,required,password:3"`
 	Password2 string    `json:"Password2" validate:"eq_field:Password"`
 	NickName  string    `json:"NickName,omitempty" validate:"eq:abc"`
-	Age       int       `json:"Age" validate:"lt:20"`
+	Age       int       `json:"Age" validate:"lt:44"`
 	BirthDay  time.Time `json:"BirthDay" validate:"gt:2024-01-01"`
 }
 
@@ -27,11 +27,11 @@ func TestValidate(t *testing.T) {
 	validate := validator.New()
 	if err := validate.Validate(form); err != nil {
 		switch e := err.(type) {
-		case *validator.InvalidValidation:
-			t.Log(e)
 		case *validator.StructError:
 			t.Log(e)
 			t.Log(e.Map())
+		default:
+			t.Log(e)
 		}
 	}
 }

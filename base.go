@@ -1,6 +1,8 @@
 package validator
 
 import (
+	"errors"
+	"fmt"
 	"reflect"
 	"strings"
 )
@@ -31,6 +33,9 @@ func (self *Engine) Validate(i interface{}) error {
 	if structVal.Kind() == reflect.Pointer {
 		structVal = structVal.Elem()
 	}
+	if structVal.Kind() != reflect.Struct {
+		return errors.New("Only support validate 'Struct' type")
+	}
 	structTyp := structVal.Type()
 	structError := &StructError{
 		Detail: make([]*FieldError, 0),
@@ -58,42 +63,33 @@ func (self *Engine) Validate(i interface{}) error {
 func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflect.Value) error {
 	tag := fieldTyp.Tag.Get(self.tagName)
 	flags := parseFlags(tag)
-	validations := make(map[string]string)
-	for k, v := range flags {
-		validations[k] = v
-	}
-	index := fieldTyp.Index[0]
 	fieldError := FieldError{
 		Field:     fieldTyp,
 		Feedbacks: make([]string, 0),
 	}
 	for flag, param := range flags {
 		v := Validation{
-			Validations: validations,
 			StructField: fieldTyp,
-			Field:       structVal.Field(index),
+			Field:       structVal.Field(fieldTyp.Index[0]),
 			Struct:      structVal,
 			Flag:        flag,
 			Param:       param,
 		}
 		if validator, ok := self.Validators[flag]; ok {
 			if err := validator(v); err != nil {
-				switch err.(type) {
-				case *InvalidValidation:
+				switch feedback := err.(type) {
+				case *Feedback:
+					errFeedback := feedback.Error()
+					if handler, ok := self.FeedbackHandlers[v.Flag]; ok {
+						errFeedback = handler(feedback)
+					}
+					fieldError.Feedbacks = append(fieldError.Feedbacks, errFeedback)
+				default:
 					return err
 				}
-				feedback := err.Error()
-				if handler, ok := self.FeedbackHandlers[v.Flag]; ok {
-					validationError := ValidationError{
-						Validation: v,
-						error:      feedback,
-					}
-					feedback = handler(validationError)
-				}
-				fieldError.Feedbacks = append(fieldError.Feedbacks, feedback)
 			}
 		} else {
-			//fmt.Errorf("Unregistered validator '%s'", k)
+			return fmt.Errorf("Unregistered validator '%s'", flag)
 		}
 	}
 	if len(fieldError.Feedbacks) > 0 {
@@ -122,7 +118,6 @@ func (self *Engine) RegisterFeedbackHandler(flag string, handler FeedbackHandler
 }
 
 type Validation struct {
-	Validations map[string]string
 	StructField reflect.StructField
 	Field       reflect.Value
 	Struct      reflect.Value
@@ -130,12 +125,22 @@ type Validation struct {
 	Param       string
 }
 
-func (self *Validation) NewError(feedback string) *ValidationError {
-	e := &ValidationError{
-		Validation: *self,
-		error:      feedback,
+func (self *Validation) Error(s string) error {
+	return &Feedback{
+		Validation: self,
+		s:          s,
 	}
-	return e
+}
+
+func (self *Validation) Errorf(format string, a ...any) error {
+	return &Feedback{
+		Validation: self,
+		s:          fmt.Sprintf(format, a...),
+	}
+}
+
+func (self *Validation) ValidatorError(s string) error {
+	return fmt.Errorf("<Field:%s Validator:%s> %s", self.StructField.Name, self.Flag, s)
 }
 
 func parseFlags(tag string) map[string]string {

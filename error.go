@@ -7,27 +7,24 @@ import (
 	"strings"
 )
 
-type FeedbackHandler func(e ValidationError) string
+type FeedbackHandler func(f *Feedback) string
 
-type InvalidValidation struct {
-	error string
+type Feedback struct {
+	Validation *Validation
+	s          string
 }
 
-func (self *InvalidValidation) Error() string {
-	return self.error
-}
-
-func NewInvalidValidation(s string) *InvalidValidation {
-	return &InvalidValidation{s}
+func (self *Feedback) Error() string {
+	return self.s
 }
 
 type ValidationError struct {
 	Validation Validation
-	error      string
+	s          string
 }
 
 func (self *ValidationError) Error() string {
-	return self.error
+	return self.s
 }
 
 type FieldError struct {

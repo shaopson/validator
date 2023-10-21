@@ -13,6 +13,7 @@ type UserForm struct {
 	NickName  string    `json:"NickName,omitempty" validate:"eq:abc"`
 	Age       int       `json:"Age" validate:"lt:44"`
 	BirthDay  time.Time `json:"BirthDay" validate:"gt:2024-01-01"`
+	Ip        string    `validate:"ip:v6"`
 }
 
 func TestValidate(t *testing.T) {
@@ -23,15 +24,16 @@ func TestValidate(t *testing.T) {
 		Password: "d1@D",
 		Age:      30,
 		BirthDay: ti,
+		Ip:       "233",
 	}
 	validate := validator.New()
 	if err := validate.Validate(form); err != nil {
-		switch e := err.(type) {
-		case *validator.StructError:
+		if e, ok := err.(*validator.ValidationError); ok {
 			t.Log(e)
 			t.Log(e.Map())
-		default:
-			t.Log(e)
+		} else {
+			t.Error(err)
 		}
+
 	}
 }

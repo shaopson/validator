@@ -21,9 +21,7 @@ var hansFeedbackHandlers = map[string]validator.FeedbackHandler{
 	"lte":       lteFeedback,
 	"phone":     phoneFeedback,
 	"email":     emailFeedback,
-	"ip":        ipv6Feedback,
-	"ipv4":      ipv4Feedback,
-	"ipv6":      ipv6Feedback,
+	"ip":        ipFeedback,
 	"number":    numberFeedback,
 	"lower":     lowerFeedback,
 	"upper":     upperFeedback,
@@ -76,6 +74,12 @@ func emailFeedback(f *validator.Feedback) string {
 }
 
 func ipFeedback(f *validator.Feedback) string {
+	switch f.Validation.Param {
+	case "v4":
+		return "无效的ipv4地址"
+	case "v6":
+		return "无效的ipv6地址"
+	}
 	return "无效的ip地址"
 }
 

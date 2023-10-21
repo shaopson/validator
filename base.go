@@ -37,7 +37,7 @@ func (self *Engine) Validate(i interface{}) error {
 		return errors.New("Only support validate 'Struct' type")
 	}
 	structTyp := structVal.Type()
-	structError := &StructError{
+	structError := &ValidationError{
 		Detail: make([]*FieldError, 0),
 	}
 	for i := 0; i < structTyp.NumField(); i++ {

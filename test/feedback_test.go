@@ -17,11 +17,11 @@ func TestFeedback(t *testing.T) {
 	validate := validator.New()
 	if err := validate.Validate(form); err != nil {
 		switch e := err.(type) {
-		case *validator.StructError:
+		case *validator.ValidationError:
 			t.Log(e)
 			t.Log(e.Map())
 		default:
-			t.Log(e)
+			t.Error(err)
 		}
 	}
 

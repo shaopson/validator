@@ -24,8 +24,6 @@ var DefaultValidators = map[string]Validator{
 	"phone":     phoneValidator,
 	"email":     emailValidator,
 	"ip":        ipValidator,
-	"ipv4":      ipv4Validator,
-	"ipv6":      ipv6Validator,
 	"number":    numberValidator,
 	"lower":     lowerValidator,
 	"upper":     upperValidator,
@@ -399,30 +397,22 @@ func ipValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
-	if ip := net.ParseIP(v.Field.String()); ip == nil {
-		return v.Error("invalid ip format")
-	}
-	return nil
-}
-
-func ipv4Validator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
-	}
 	ip := net.ParseIP(v.Field.String())
-	if ip == nil || !strings.Contains(v.Field.String(), ".") {
-		return v.Error("invalid ipv4 format")
-	}
-	return nil
-}
-
-func ipv6Validator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
-	}
-	ip := net.ParseIP(v.Field.String())
-	if ip == nil || !strings.Contains(v.Field.String(), ":") {
-		return v.Error("invalid ipv6 format")
+	switch v.Param {
+	case "":
+		if ip == nil {
+			return v.Error("invalid ip address")
+		}
+	case "v4":
+		if ip == nil || !strings.Contains(v.Field.String(), ".") {
+			return v.Error("invalid ipv4 address")
+		}
+	case "v6":
+		if ip == nil || !strings.Contains(v.Field.String(), ":") {
+			return v.Error("invalid ipv6 address")
+		}
+	default:
+		return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 	}
 	return nil
 }

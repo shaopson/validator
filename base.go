@@ -68,7 +68,7 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 		Feedbacks: make([]string, 0),
 	}
 	for flag, param := range flags {
-		v := Validation{
+		v := &Validation{
 			StructField: fieldTyp,
 			Field:       structVal.Field(fieldTyp.Index[0]),
 			Struct:      structVal,

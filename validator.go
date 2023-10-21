@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-type Validator func(Validation) error
+type Validator func(*Validation) error
 
 var DefaultValidators = map[string]Validator{
 	"required":  requiredValidator,
@@ -43,14 +43,14 @@ var DefaultValidators = map[string]Validator{
 
 var timeType = reflect.TypeOf(time.Time{})
 
-func requiredValidator(v Validation) error {
+func requiredValidator(v *Validation) error {
 	if v.Field.IsZero() {
 		return errors.New("field is required")
 	}
 	return nil
 }
 
-func lenValidator(v Validation) error {
+func lenValidator(v *Validation) error {
 	params := strings.SplitN(v.Param, "-", 2)
 	args := make([]int, len(params))
 	for i, param := range params {
@@ -69,7 +69,7 @@ func lenValidator(v Validation) error {
 }
 
 // equal
-func eqValidator(v Validation) error {
+func eqValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if v.Field.String() == v.Param {
@@ -128,7 +128,7 @@ func eqValidator(v Validation) error {
 }
 
 // greater
-func gtValidator(v Validation) error {
+func gtValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if v.Field.String() > v.Param {
@@ -187,7 +187,7 @@ func gtValidator(v Validation) error {
 }
 
 // greater than or equal
-func gteValidator(v Validation) error {
+func gteValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if v.Field.String() >= v.Param {
@@ -246,7 +246,7 @@ func gteValidator(v Validation) error {
 }
 
 // less than
-func ltValidator(v Validation) error {
+func ltValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if v.Field.String() < v.Param {
@@ -305,7 +305,7 @@ func ltValidator(v Validation) error {
 }
 
 // less than or equal
-func lteValidator(v Validation) error {
+func lteValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if v.Field.String() <= v.Param {
@@ -365,7 +365,7 @@ func lteValidator(v Validation) error {
 
 var emailRegx = regexp.MustCompile("^[0-9a-zA-Z_-]+@[0-9a-zA-Z_-]+(.[0-9a-zA-Z_-]+)+$")
 
-func emailValidator(v Validation) error {
+func emailValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -380,7 +380,7 @@ func emailValidator(v Validation) error {
 var phoneRegx = regexp.MustCompile("^(\\+\\d{1,3})?\\s?\\d{9,11}$")
 var chinaPhoneRegx = regexp.MustCompile("^(\\+\\d{2})?\\s?1[3-9]\\d{9}$")
 
-func phoneValidator(v Validation) error {
+func phoneValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -395,7 +395,7 @@ func phoneValidator(v Validation) error {
 	return nil
 }
 
-func ipValidator(v Validation) error {
+func ipValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -405,7 +405,7 @@ func ipValidator(v Validation) error {
 	return nil
 }
 
-func ipv4Validator(v Validation) error {
+func ipv4Validator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -416,7 +416,7 @@ func ipv4Validator(v Validation) error {
 	return nil
 }
 
-func ipv6Validator(v Validation) error {
+func ipv6Validator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -429,7 +429,7 @@ func ipv6Validator(v Validation) error {
 
 var numberRegx = regexp.MustCompile("^\\d+$")
 
-func numberValidator(v Validation) error {
+func numberValidator(v *Validation) error {
 	switch v.Field.Kind() {
 	case reflect.String:
 		if numberRegx.MatchString(v.Field.String()) {
@@ -443,7 +443,7 @@ func numberValidator(v Validation) error {
 	return v.Error("field must be a valid numeric value")
 }
 
-func lowerValidator(v Validation) error {
+func lowerValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -453,7 +453,7 @@ func lowerValidator(v Validation) error {
 	return v.Error("field must must be a lowercase string")
 }
 
-func upperValidator(v Validation) error {
+func upperValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -465,7 +465,7 @@ func upperValidator(v Validation) error {
 
 var alphaRegex = regexp.MustCompile("^[a-zA-Z]+$")
 
-func alphaValidator(v Validation) error {
+func alphaValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -477,7 +477,7 @@ func alphaValidator(v Validation) error {
 
 var usernameRegex = regexp.MustCompile("^[0-9a-zA-Z@.-]+$")
 
-func usernameValidator(v Validation) error {
+func usernameValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -504,7 +504,7 @@ var containLowerRegx = regexp.MustCompile("[a-z]+")
 var containUpperRegx = regexp.MustCompile("[A-Z]+")
 var containSymbolRegx = regexp.MustCompile("[`~!@#$%^&*()\\-_=+[{\\]};:'\",<.>/?]+")
 
-func passwordValidator(v Validation) error {
+func passwordValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -538,7 +538,7 @@ func passwordValidator(v Validation) error {
 	return nil
 }
 
-func eqfieldValidator(v Validation) error {
+func eqfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
@@ -576,7 +576,7 @@ func eqfieldValidator(v Validation) error {
 	return v.Errorf("field must be equal to field '%s'", v.Param)
 }
 
-func ltfieldValidator(v Validation) error {
+func ltfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
@@ -614,7 +614,7 @@ func ltfieldValidator(v Validation) error {
 	return v.Errorf("field must be less than field '%s'", v.Param)
 }
 
-func ltefieldValidator(v Validation) error {
+func ltefieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
@@ -652,7 +652,7 @@ func ltefieldValidator(v Validation) error {
 	return v.Errorf("field must be less than or equal to field '%s'", v.Param)
 }
 
-func gtfieldValidator(v Validation) error {
+func gtfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
@@ -690,7 +690,7 @@ func gtfieldValidator(v Validation) error {
 	return v.Errorf("field must be greater than field '%s'", v.Param)
 }
 
-func gtefieldValidator(v Validation) error {
+func gtefieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
@@ -728,7 +728,7 @@ func gtefieldValidator(v Validation) error {
 	return v.Errorf("field must be greater than field '%s'", v.Param)
 }
 
-func prefixValidator(v Validation) error {
+func prefixValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}
@@ -738,7 +738,7 @@ func prefixValidator(v Validation) error {
 	return v.Errorf("field must contain the string prefix '%s'", v.Param)
 }
 
-func suffixValidator(v Validation) error {
+func suffixValidator(v *Validation) error {
 	if v.Field.Kind() != reflect.String {
 		return v.ValidatorError("validator only support 'string' type")
 	}

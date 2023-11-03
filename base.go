@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"sync"
 )
 
 const tagName = "validate"
@@ -17,6 +18,7 @@ type Engine struct {
 	feedbackTagName  string
 	FeedbackHandlers map[string]FeedbackHandler
 	Validators       map[string]Validator
+	lock             sync.RWMutex
 }
 
 func New() *Engine {
@@ -110,10 +112,14 @@ func (self *Engine) SetFeedbackTagName(name string) {
 }
 
 func (self *Engine) RegisterValidator(flag string, validator Validator) {
+	self.lock.Lock()
+	defer self.lock.Unlock()
 	self.Validators[flag] = validator
 }
 
 func (self *Engine) RegisterFeedbackHandler(flag string, handler FeedbackHandler) {
+	self.lock.Lock()
+	defer self.lock.Unlock()
 	self.FeedbackHandlers[flag] = handler
 }
 

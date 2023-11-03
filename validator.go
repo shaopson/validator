@@ -1,7 +1,6 @@
 package validator
 
 import (
-	"errors"
 	"fmt"
 	"net"
 	"reflect"
@@ -43,7 +42,7 @@ var timeType = reflect.TypeOf(time.Time{})
 
 func requiredValidator(v *Validation) error {
 	if v.Field.IsZero() {
-		return errors.New("field is required")
+		return v.Error("field is required")
 	}
 	return nil
 }

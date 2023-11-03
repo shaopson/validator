@@ -25,7 +25,7 @@ type UserForm struct {
     Username  string `validate:"required,username,len:6-18"`
     Email     string `validate:"email"`
     Password  string `validate:"password,len:8-20"`
-    Password2 string `validate:"eq_file:Password"`
+    Password2 string `validate:"eq_field:Password"`
 }
 
 func main() {

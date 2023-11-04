@@ -48,6 +48,9 @@ func requiredValidator(v *Validation) error {
 }
 
 func lenValidator(v *Validation) error {
+	if v.Param == "" {
+		return v.ValidatorError("missing param")
+	}
 	params := strings.SplitN(v.Param, "-", 2)
 	args := make([]int, len(params))
 	for i, param := range params {
@@ -57,47 +60,70 @@ func lenValidator(v *Validation) error {
 			args[i] = arg
 		}
 	}
-	if len(args) == 1 && v.Field.Len() == args[0] {
-		return nil
-	} else if v.Field.Len() > args[0] && v.Field.Len() < args[1] {
-		return nil
+	s := fmt.Sprintf("field length must be %s characters", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
 	}
-	return v.Errorf("field length must be %s characters", v.Param)
+	switch field.Kind() {
+	case reflect.String, reflect.Slice, reflect.Map, reflect.Array:
+		if len(args) == 1 {
+			if field.Len() == args[0] {
+				return nil
+			}
+		} else if field.Len() >= args[0] && field.Len() <= args[1] {
+			return nil
+		}
+	default:
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
+	}
+	return v.Error(s)
 }
 
 // equal
 func eqValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field value must be equal " + v.Param
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() == v.Param {
+		if field.String() == v.Param {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if param, err := strconv.ParseInt(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Int() == param {
+		} else if field.Int() == param {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if param, err := strconv.ParseUint(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Uint() == param {
+		} else if field.Uint() == param {
 			return nil
 		}
 	case reflect.Float32:
 		if param, err := strconv.ParseFloat(v.Param, 32); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() == param {
+		} else if field.Float() == param {
 			return nil
 		}
 	case reflect.Float64:
 		if param, err := strconv.ParseFloat(v.Param, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() == param {
+		} else if field.Float() == param {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
+		if field.CanConvert(timeType) {
 			var t time.Time
 			var err error
 			if strings.Contains(v.Param, ":") {
@@ -111,52 +137,60 @@ func eqValidator(v *Validation) error {
 			} else {
 				return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 			}
-			value := v.Field.Interface().(time.Time)
+			value := field.Interface().(time.Time)
 			if value.Equal(t) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field value must be equal " + v.Param)
+	return v.Error(s)
 }
 
 // greater
 func gtValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field value must be greater than " + v.Param
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() > v.Param {
+		if field.String() > v.Param {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if param, err := strconv.ParseInt(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Int() > param {
+		} else if field.Int() > param {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if param, err := strconv.ParseUint(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Uint() > param {
+		} else if field.Uint() > param {
 			return nil
 		}
 	case reflect.Float32:
 		if param, err := strconv.ParseFloat(v.Param, 32); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() > param {
+		} else if field.Float() > param {
 			return nil
 		}
 	case reflect.Float64:
 		if param, err := strconv.ParseFloat(v.Param, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() > param {
+		} else if field.Float() > param {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
+		if field.CanConvert(timeType) {
 			var t time.Time
 			var err error
 			if strings.Contains(v.Param, ":") {
@@ -170,52 +204,60 @@ func gtValidator(v *Validation) error {
 			} else {
 				return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 			}
-			value := v.Field.Interface().(time.Time)
+			value := field.Interface().(time.Time)
 			if value.After(t) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field value must be greater than " + v.Param)
+	return v.Error(s)
 }
 
 // greater than or equal
 func gteValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field value must be greater than or equal to " + v.Param
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() >= v.Param {
+		if field.String() >= v.Param {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if param, err := strconv.ParseInt(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Int() >= param {
+		} else if field.Int() >= param {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if param, err := strconv.ParseUint(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Uint() >= param {
+		} else if field.Uint() >= param {
 			return nil
 		}
 	case reflect.Float32:
 		if param, err := strconv.ParseFloat(v.Param, 32); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() >= param {
+		} else if field.Float() >= param {
 			return nil
 		}
 	case reflect.Float64:
 		if param, err := strconv.ParseFloat(v.Param, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() >= param {
+		} else if field.Float() >= param {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
+		if field.CanConvert(timeType) {
 			var t time.Time
 			var err error
 			if strings.Contains(v.Param, ":") {
@@ -229,52 +271,60 @@ func gteValidator(v *Validation) error {
 			} else {
 				return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 			}
-			value := v.Field.Interface().(time.Time)
+			value := field.Interface().(time.Time)
 			if value.After(t) || value.Equal(t) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field value must be greater than or equal to " + v.Param)
+	return v.Error(s)
 }
 
 // less than
 func ltValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field value must be less than " + v.Param
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() < v.Param {
+		if field.String() < v.Param {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if param, err := strconv.ParseInt(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Int() < param {
+		} else if field.Int() < param {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if param, err := strconv.ParseUint(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Uint() < param {
+		} else if field.Uint() < param {
 			return nil
 		}
 	case reflect.Float32:
 		if param, err := strconv.ParseFloat(v.Param, 32); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() < param {
+		} else if field.Float() < param {
 			return nil
 		}
 	case reflect.Float64:
 		if param, err := strconv.ParseFloat(v.Param, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() < param {
+		} else if field.Float() < param {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
+		if field.CanConvert(timeType) {
 			var t time.Time
 			var err error
 			if strings.Contains(v.Param, ":") {
@@ -288,52 +338,60 @@ func ltValidator(v *Validation) error {
 			} else {
 				return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 			}
-			value := v.Field.Interface().(time.Time)
+			value := field.Interface().(time.Time)
 			if value.Before(t) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field value must be less than " + v.Param)
+	return v.Error(s)
 }
 
 // less than or equal
 func lteValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field value must be less than or equal to " + v.Param
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() <= v.Param {
+		if field.String() <= v.Param {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
 		if param, err := strconv.ParseInt(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Int() <= param {
+		} else if field.Int() <= param {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		if param, err := strconv.ParseUint(v.Param, 0, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Uint() <= param {
+		} else if field.Uint() <= param {
 			return nil
 		}
 	case reflect.Float32:
 		if param, err := strconv.ParseFloat(v.Param, 32); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() <= param {
+		} else if field.Float() <= param {
 			return nil
 		}
 	case reflect.Float64:
 		if param, err := strconv.ParseFloat(v.Param, 64); err != nil {
 			return v.ValidatorError("parse param failure:" + err.Error())
-		} else if v.Field.Float() <= param {
+		} else if field.Float() <= param {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
+		if field.CanConvert(timeType) {
 			var t time.Time
 			var err error
 			if strings.Contains(v.Param, ":") {
@@ -347,28 +405,36 @@ func lteValidator(v *Validation) error {
 			} else {
 				return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
 			}
-			value := v.Field.Interface().(time.Time)
+			value := field.Interface().(time.Time)
 			if value.Before(t) || value.Equal(t) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field value must be less than or equal to " + v.Param)
+	return v.Error(s)
 }
 
 var emailRegx = regexp.MustCompile("^[0-9a-zA-Z_-]+@[0-9a-zA-Z_-]+(.[0-9a-zA-Z_-]+)+$")
 
 func emailValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	s := "invalid email format"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
 	}
-	value := v.Field.String()
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	value := field.String()
 	if ok := emailRegx.MatchString(value); !ok {
-		return v.Error("invalid email format")
+		return v.Error(s)
 	}
 	return nil
 }
@@ -378,40 +444,53 @@ var phoneRegx = regexp.MustCompile("^(\\+\\d{1,3})?\\s?\\d{9,11}$")
 var chinaPhoneRegx = regexp.MustCompile("^(\\+\\d{2})?\\s?1[3-9]\\d{9}$")
 
 func phoneValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	s := "invalid phone number"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
 	}
-	value := v.Field.String()
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	value := field.String()
 	regx := phoneRegx
 	if strings.HasPrefix(value, "+86") {
 		regx = chinaPhoneRegx
 	}
 	if ok := regx.MatchString(value); !ok {
-		return v.Error("invalid phone number")
+		return v.Error(s)
 	}
 	return nil
 }
 
-func ipValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
-	}
-	ip := net.ParseIP(v.Field.String())
+func ipValidator(v *Validation) (err error) {
+	var s string
 	switch v.Param {
 	case "":
-		if ip == nil {
-			return v.Error("invalid ip address")
-		}
+		s = "invalid ip address"
 	case "v4":
-		if ip == nil || !strings.Contains(v.Field.String(), ".") {
-			return v.Error("invalid ipv4 address")
-		}
+		s = "invalid ipv4 address"
 	case "v6":
-		if ip == nil || !strings.Contains(v.Field.String(), ":") {
-			return v.Error("invalid ipv6 address")
-		}
+		s = "invalid ipv6 address"
 	default:
 		return v.ValidatorError(fmt.Sprintf("invalid param '%s'", v.Param))
+	}
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	value := field.String()
+	if ip := net.ParseIP(value); ip == nil {
+		return v.Error(s)
 	}
 	return nil
 }
@@ -419,61 +498,101 @@ func ipValidator(v *Validation) error {
 var numberRegx = regexp.MustCompile("^\\d+$")
 
 func numberValidator(v *Validation) error {
-	switch v.Field.Kind() {
+	s := "field must be a valid numeric value"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if numberRegx.MatchString(v.Field.String()) {
+		if numberRegx.MatchString(field.String()) {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
 		return nil
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support type '%T'", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support type '%s'", v.StructField.Type))
 	}
-	return v.Error("field must be a valid numeric value")
+	return v.Error(s)
 }
 
 func lowerValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	s := "field must must be a lowercase string"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(s)
+		}
+		field = field.Elem()
 	}
-	if v.Field.String() == strings.ToLower(v.Field.String()) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if field.String() == strings.ToLower(field.String()) {
 		return nil
 	}
-	return v.Error("field must must be a lowercase string")
+	return v.Error(s)
 }
 
 func upperValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	feedback := "field must be a uppercase string"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
 	}
-	if v.Field.String() == strings.ToUpper(v.Field.String()) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if field.String() == strings.ToUpper(field.String()) {
 		return nil
 	}
-	return v.Error("field must be a uppercase string")
+	return v.Error(feedback)
 }
 
 var alphaRegex = regexp.MustCompile("^[a-zA-Z]+$")
 
 func alphaValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	feedback := "field can only contain alphabetic characters"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
 	}
-	if alphaRegex.MatchString(v.Field.String()) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if alphaRegex.MatchString(field.String()) {
 		return nil
 	}
-	return v.Error("field can only contain alphabetic characters")
+	return v.Error(feedback)
 }
 
 var usernameRegex = regexp.MustCompile("^[0-9a-zA-Z@.-]+$")
 
 func usernameValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	feedback := "username may contain only English letters, numbers, and @/./- characters"
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
 	}
-	if usernameRegex.MatchString(v.Field.String()) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if usernameRegex.MatchString(field.String()) {
 		return nil
 	}
-	return v.Error("username may contain only English letters, numbers, and @/./- characters")
+	return v.Error(feedback)
 }
 
 /*
@@ -494,35 +613,36 @@ var containUpperRegx = regexp.MustCompile("[A-Z]+")
 var containSymbolRegx = regexp.MustCompile("[`~!@#$%^&*()\\-_=+[{\\]};:'\",<.>/?]+")
 
 func passwordValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
-	}
-	var err error
-	value := v.Field.String()
+	feedback := ""
+	var regexps []*regexp.Regexp
 	switch v.Param {
 	case "3", "":
-		err = v.Error("password must contain uppercase and lowercase letters, numbers, symbols")
-		if !containSymbolRegx.MatchString(value) {
-			return err
-		}
-		fallthrough
+		feedback = "password must contain uppercase and lowercase letters, numbers, symbols"
+		regexps = []*regexp.Regexp{containSymbolRegx, containUpperRegx, containLowerRegx, containAlphaRegx, containNumRegx}
 	case "2":
-		if err == nil {
-			err = v.Error("password must contain uppercase and lowercase letters, numbers")
-		}
-		if !containLowerRegx.MatchString(value) || !containUpperRegx.MatchString(value) {
-			return err
-		}
-		fallthrough
+		feedback = "password must contain uppercase and lowercase letters, numbers"
+		regexps = []*regexp.Regexp{containUpperRegx, containLowerRegx, containAlphaRegx, containNumRegx}
 	case "1":
-		if err == nil {
-			err = v.Error("password must contain letters and numbers")
-		}
-		if !containNumRegx.MatchString(value) || !containAlphaRegx.MatchString(value) {
-			return err
-		}
+		feedback = "password must contain letters and numbers"
+		regexps = []*regexp.Regexp{containAlphaRegx, containNumRegx}
 	default:
 		return v.ValidatorError(fmt.Sprintf("invalid parma '%s'", v.Param))
+	}
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
+	if v.Field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	value := field.String()
+	for _, regex := range regexps {
+		if !regex.MatchString(value) {
+			return v.Error(feedback)
+		}
 	}
 	return nil
 }
@@ -531,207 +651,306 @@ func eqfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
+	feedback := fmt.Sprintf("field must be equal to field '%s'", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
 	target := v.Struct.FieldByName(v.Param)
-	switch v.Field.Kind() {
+	if target.Kind() == reflect.Pointer {
+		if target.IsNil() {
+			return v.Error(feedback)
+		}
+		target = target.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() == target.String() {
+		if field.String() == target.String() {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Field.Int() == target.Int() {
+		if field.Int() == target.Int() {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v.Field.Uint() == target.Uint() {
+		if field.Uint() == target.Uint() {
 			return nil
 		}
 	case reflect.Float32, reflect.Float64:
-		if v.Field.Float() == target.Float() {
+		if field.Float() == target.Float() {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
-			value := v.Field.Interface().(time.Time)
+		if field.CanConvert(timeType) {
+			if !target.CanConvert(timeType) {
+				return v.ValidatorError(fmt.Sprintf("target field '%s' cannot be compared", target.Type().Name()))
+			}
+			value := field.Interface().(time.Time)
 			targetVal := target.Interface().(time.Time)
 			if value.Equal(targetVal) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 	}
-	return v.Errorf("field must be equal to field '%s'", v.Param)
+	return v.Error(feedback)
 }
 
 func ltfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
+	feedback := fmt.Sprintf("field must be less than field '%s'", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
 	target := v.Struct.FieldByName(v.Param)
-	switch v.Field.Kind() {
+	if target.Kind() == reflect.Pointer {
+		if target.IsNil() {
+			return v.Error(feedback)
+		}
+		target = target.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() < target.String() {
+		if field.String() < target.String() {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Field.Int() < target.Int() {
+		if field.Int() < target.Int() {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v.Field.Uint() < target.Uint() {
+		if field.Uint() < target.Uint() {
 			return nil
 		}
 	case reflect.Float32, reflect.Float64:
-		if v.Field.Float() < target.Float() {
+		if field.Float() < target.Float() {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
-			value := v.Field.Interface().(time.Time)
+		if field.CanConvert(timeType) {
+			if !target.CanConvert(timeType) {
+				return v.ValidatorError(fmt.Sprintf("target field '%s' cannot be compared", target.Type().Name()))
+			}
+			value := field.Interface().(time.Time)
 			targetVal := target.Interface().(time.Time)
 			if value.Before(targetVal) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 	}
-	return v.Errorf("field must be less than field '%s'", v.Param)
+	return v.Error(feedback)
 }
 
 func ltefieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
+	feedback := fmt.Sprintf("field must be less than or equal to field '%s'", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
 	target := v.Struct.FieldByName(v.Param)
-	switch v.Field.Kind() {
+	if target.Kind() == reflect.Pointer {
+		if target.IsNil() {
+			return v.Error(feedback)
+		}
+		target = target.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() <= target.String() {
+		if field.String() <= target.String() {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Field.Int() <= target.Int() {
+		if field.Int() <= target.Int() {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v.Field.Uint() <= target.Uint() {
+		if field.Uint() <= target.Uint() {
 			return nil
 		}
 	case reflect.Float32, reflect.Float64:
-		if v.Field.Float() <= target.Float() {
+		if field.Float() <= target.Float() {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
-			value := v.Field.Interface().(time.Time)
+		if field.CanConvert(timeType) {
+			if !target.CanConvert(timeType) {
+				return v.ValidatorError(fmt.Sprintf("target field '%s' cannot be compared", target.Type().Name()))
+			}
+			value := field.Interface().(time.Time)
 			targetVal := target.Interface().(time.Time)
 			if value.Before(targetVal) || value.Equal(targetVal) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 	}
-	return v.Errorf("field must be less than or equal to field '%s'", v.Param)
+	return v.Error(feedback)
 }
 
 func gtfieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
+	feedback := fmt.Sprintf("field must be greater than field '%s'", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
 	target := v.Struct.FieldByName(v.Param)
-	switch v.Field.Kind() {
+	if target.Kind() == reflect.Pointer {
+		if target.IsNil() {
+			return v.Error(feedback)
+		}
+		target = target.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() > target.String() {
+		if field.String() > target.String() {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Field.Int() > target.Int() {
+		if field.Int() > target.Int() {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v.Field.Uint() > target.Uint() {
+		if field.Uint() > target.Uint() {
 			return nil
 		}
 	case reflect.Float32, reflect.Float64:
-		if v.Field.Float() > target.Float() {
+		if field.Float() > target.Float() {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
-			value := v.Field.Interface().(time.Time)
+		if field.CanConvert(timeType) {
+			if !target.CanConvert(timeType) {
+				return v.ValidatorError(fmt.Sprintf("target field '%s' cannot be compared", target.Type().Name()))
+			}
+			value := field.Interface().(time.Time)
 			targetVal := target.Interface().(time.Time)
 			if value.After(targetVal) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 	}
-	return v.Errorf("field must be greater than field '%s'", v.Param)
+	return v.Error(feedback)
 }
 
 func gtefieldValidator(v *Validation) error {
 	if _, ok := v.Struct.Type().FieldByName(v.Param); !ok {
 		return v.ValidatorError(fmt.Sprintf("param error: field '%s' not found", v.Param))
 	}
+	feedback := fmt.Sprintf("field must be greater than field '%s'", v.Param)
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Error(feedback)
+		}
+		field = field.Elem()
+	}
 	target := v.Struct.FieldByName(v.Param)
-	switch v.Field.Kind() {
+	if target.Kind() == reflect.Pointer {
+		if target.IsNil() {
+			return v.Error(feedback)
+		}
+		target = target.Elem()
+	}
+	switch field.Kind() {
 	case reflect.String:
-		if v.Field.String() >= target.String() {
+		if field.String() >= target.String() {
 			return nil
 		}
 	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
-		if v.Field.Int() >= target.Int() {
+		if field.Int() >= target.Int() {
 			return nil
 		}
 	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
-		if v.Field.Uint() >= target.Uint() {
+		if field.Uint() >= target.Uint() {
 			return nil
 		}
 	case reflect.Float32, reflect.Float64:
-		if v.Field.Float() >= target.Float() {
+		if field.Float() >= target.Float() {
 			return nil
 		}
 	case reflect.Struct:
-		if v.Field.CanConvert(timeType) {
-			value := v.Field.Interface().(time.Time)
+		if field.CanConvert(timeType) {
+			if !target.CanConvert(timeType) {
+				return v.ValidatorError(fmt.Sprintf("target field '%s' cannot be compared", target.Type().Name()))
+			}
+			value := field.Interface().(time.Time)
 			targetVal := target.Interface().(time.Time)
 			if value.After(targetVal) || value.Equal(targetVal) {
 				return nil
 			}
 		} else {
-			return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+			return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 		}
 	default:
-		return v.ValidatorError(fmt.Sprintf("not support '%T' type", v.Field.Interface()))
+		return v.ValidatorError(fmt.Sprintf("not support '%s' type", v.StructField.Type))
 	}
-	return v.Errorf("field must be greater than field '%s'", v.Param)
+	return v.Error(feedback)
 }
 
 func prefixValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Errorf("field must contain the string prefix '%s'", v.Param)
+		}
+		field = field.Elem()
 	}
-	if strings.HasPrefix(v.Field.String(), v.Param) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if strings.HasPrefix(field.String(), v.Param) {
 		return nil
 	}
 	return v.Errorf("field must contain the string prefix '%s'", v.Param)
 }
 
 func suffixValidator(v *Validation) error {
-	if v.Field.Kind() != reflect.String {
-		return v.ValidatorError("validator only support 'string' type")
+	field := v.Field
+	if field.Kind() == reflect.Pointer {
+		if field.IsNil() {
+			return v.Errorf("field must contain the string suffix '%s'", v.Param)
+		}
+		field = field.Elem()
 	}
-	if strings.HasPrefix(v.Field.String(), v.Param) {
+	if field.Kind() != reflect.String {
+		return v.ValidatorError("validator only support 'string' or '*string' type")
+	}
+	if strings.HasPrefix(field.String(), v.Param) {
 		return nil
 	}
 	return v.Errorf("field must contain the string suffix '%s'", v.Param)

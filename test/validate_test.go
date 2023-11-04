@@ -37,3 +37,21 @@ func TestValidate(t *testing.T) {
 
 	}
 }
+
+type blankTestForm struct {
+	Str string `validate:"len:5-10,blank"`
+	Int int    `validate:"eq:10,blank"`
+}
+
+func TestBlank(t *testing.T) {
+	form := &blankTestForm{}
+	v := validator.New()
+	if err := v.Validate(form); err != nil {
+		if e, ok := err.(*validator.ValidationError); ok {
+			t.Error(e)
+		} else {
+			t.Error(err)
+		}
+	}
+
+}

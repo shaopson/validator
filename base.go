@@ -10,6 +10,7 @@ import (
 
 const tagName = "validate"
 const feedbackTagName = "feedback"
+const omitemptyFlag = "blank"
 
 var DefaultFeedbackHandlers = map[string]FeedbackHandler{}
 
@@ -33,6 +34,9 @@ func New() *Engine {
 func (self *Engine) Validate(i interface{}) error {
 	structVal := reflect.ValueOf(i)
 	if structVal.Kind() == reflect.Pointer {
+		if structVal.IsNil() {
+			return errors.New("Invalid pointer")
+		}
 		structVal = structVal.Elem()
 	}
 	if structVal.Kind() != reflect.Struct {
@@ -44,6 +48,9 @@ func (self *Engine) Validate(i interface{}) error {
 	}
 	for i := 0; i < structTyp.NumField(); i++ {
 		fieldTyp := structTyp.Field(i)
+		if !fieldTyp.IsExported() {
+			continue
+		}
 		if _, ok := fieldTyp.Tag.Lookup(self.tagName); !ok {
 			continue
 		}
@@ -65,14 +72,21 @@ func (self *Engine) Validate(i interface{}) error {
 func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflect.Value) error {
 	tag := fieldTyp.Tag.Get(self.tagName)
 	flags := parseFlags(tag)
+	_, omitEmpty := flags[omitemptyFlag]
+	delete(flags, omitemptyFlag)
 	fieldError := FieldError{
 		Field:     fieldTyp,
 		Feedbacks: make([]string, 0),
 	}
 	for flag, param := range flags {
+		// skip empty value
+		field := structVal.Field(fieldTyp.Index[0])
+		if field.IsZero() && omitEmpty {
+			continue
+		}
 		v := &Validation{
 			StructField: fieldTyp,
-			Field:       structVal.Field(fieldTyp.Index[0]),
+			Field:       field,
 			Struct:      structVal,
 			Flag:        flag,
 			Param:       param,
@@ -81,11 +95,11 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 			if err := validator(v); err != nil {
 				switch feedback := err.(type) {
 				case *Feedback:
-					errFeedback := feedback.Error()
+					s := feedback.Error()
 					if handler, ok := self.FeedbackHandlers[v.Flag]; ok {
-						errFeedback = handler(feedback)
+						s = handler(feedback)
 					}
-					fieldError.Feedbacks = append(fieldError.Feedbacks, errFeedback)
+					fieldError.Feedbacks = append(fieldError.Feedbacks, s)
 				default:
 					return err
 				}

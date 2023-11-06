@@ -23,7 +23,7 @@ import (
 
 type UserForm struct {
     Username  string `validate:"required,username,len:6-18"`
-    Email     string `validate:"email"`
+    Email     string `validate:"email,blank"`
     Password  string `validate:"password,len:8-20"`
     Password2 string `validate:"eq_field:Password"`
 }
@@ -120,6 +120,7 @@ func imgFeedback(v *validator.Feedback) string {
 ### validator list
 | validator | param                             | description                                                                                                                                                                      |
 |-----------|-----------------------------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| blank     |                                   | omit empty value            |
 | required  |                                   | field is required and cannot be a zero value                                                                                                                                     |
 | len       | number(len:10) or range(len:0-10) | value length                                                                                                                                                                     |
 | eq        | value                             | equal to value                                                                                                                                                                   |

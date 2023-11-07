@@ -1,6 +1,6 @@
-validator  [中文版](README_cn.md)
+validator
 =============
-Golang validator for easy use.
+Golang validator for easy use. [中文版](README_cn.md)
 
 - validation rules are defined using the structure tag
 - customizable validator and validation error messages

@@ -7,13 +7,13 @@ import (
 )
 
 type UserForm struct {
-	UserName  string    `json:"UserName" validate:"len:8-20,required,username"`
-	Password  string    `json:"Password" validate:"len:8-20,required,password:3"`
-	Password2 string    `json:"Password2" validate:"eq_field:Password"`
-	NickName  string    `json:"NickName,omitempty" validate:"eq:abc"`
-	Age       int       `json:"Age" validate:"lt:44"`
-	BirthDay  time.Time `json:"BirthDay" validate:"gt:2024-01-01"`
-	Ip        string    `validate:"ip:v6"`
+	UserName  string    `json:"username" validate:"len:8-20,required,username"`
+	Password  string    `json:"password" validate:"len:8-20,required,password:3"`
+	Password2 string    `json:"password2" validate:"eq_field:Password"`
+	NickName  string    `json:"nickname,omitempty" validate:"eq:abc"`
+	Age       int       `json:"age" validate:"lt:44"`
+	BirthDay  time.Time `json:"birthday" validate:"gt:2024-01-01"`
+	Ip        string    `json:"ip" validate:"ip:v6"`
 }
 
 func TestValidate(t *testing.T) {

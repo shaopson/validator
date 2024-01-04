@@ -3,15 +3,10 @@ package hans
 import (
 	"fmt"
 	"github.com/shaopson/validator"
+	"sync"
 )
 
-func init() {
-	for k, v := range hansFeedbackHandlers {
-		validator.DefaultFeedbackHandlers[k] = v
-	}
-}
-
-var hansFeedbackHandlers = map[string]validator.FeedbackHandler{
+var defaultFeedbackHandlers = map[string]validator.FeedbackHandler{
 	"required":  requiredFeedback,
 	"len":       lenFeedback,
 	"eq":        eqFeedback,
@@ -35,6 +30,38 @@ var hansFeedbackHandlers = map[string]validator.FeedbackHandler{
 	"prefix":    prefixFeedback,
 	"suffix":    suffixFeedback,
 	"password":  passwordFeedback,
+}
+
+type FeedbackSet struct {
+	handlers map[string]validator.FeedbackHandler
+	mutex    sync.RWMutex
+}
+
+func New() *FeedbackSet {
+	f := &FeedbackSet{
+		handlers: make(map[string]validator.FeedbackHandler),
+	}
+	for k, v := range defaultFeedbackHandlers {
+		f.handlers[k] = v
+	}
+	return f
+}
+
+// 将错误信息替换为中文
+func (self *FeedbackSet) Translate(f *validator.Feedback) string {
+	self.mutex.RLock()
+	if handler, ok := self.handlers[f.Validation.Flag]; ok {
+		self.mutex.RUnlock()
+		return handler(f)
+	}
+	self.mutex.RUnlock()
+	return f.Error()
+}
+
+func (self *FeedbackSet) RegisterHandler(flag string, handler validator.FeedbackHandler) {
+	self.mutex.Lock()
+	defer self.mutex.Unlock()
+	self.handlers[flag] = handler
 }
 
 func requiredFeedback(f *validator.Feedback) string {

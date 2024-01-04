@@ -9,26 +9,30 @@ import (
 )
 
 const tagName = "validate"
-const feedbackTagName = "feedback"
 const omitemptyFlag = "blank"
 
-var DefaultFeedbackHandlers = map[string]FeedbackHandler{}
+var defaultFeedbackHandlers = map[string]FeedbackHandler{}
 
 type Engine struct {
 	tagName          string
-	feedbackTagName  string
 	FeedbackHandlers map[string]FeedbackHandler
 	Validators       map[string]Validator
 	lock             sync.RWMutex
 }
 
 func New() *Engine {
-	return &Engine{
+	engine := &Engine{
 		tagName:          tagName,
-		feedbackTagName:  feedbackTagName,
-		FeedbackHandlers: DefaultFeedbackHandlers,
-		Validators:       DefaultValidators,
+		FeedbackHandlers: make(map[string]FeedbackHandler),
+		Validators:       make(map[string]Validator),
 	}
+	for k, v := range defaultFeedbackHandlers {
+		engine.FeedbackHandlers[k] = v
+	}
+	for k, v := range defaultValidators {
+		engine.Validators[k] = v
+	}
+	return engine
 }
 
 func (self *Engine) Validate(i interface{}) error {
@@ -74,9 +78,9 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 	flags := parseFlags(tag)
 	_, omitEmpty := flags[omitemptyFlag]
 	delete(flags, omitemptyFlag)
-	fieldError := FieldError{
+	fieldError := &FieldError{
 		Field:     fieldTyp,
-		Feedbacks: make([]string, 0),
+		Feedbacks: make([]*Feedback, 0),
 	}
 	for flag, param := range flags {
 		// skip empty value
@@ -95,11 +99,10 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 			if err := validator(v); err != nil {
 				switch feedback := err.(type) {
 				case *Feedback:
-					s := feedback.Error()
 					if handler, ok := self.FeedbackHandlers[v.Flag]; ok {
-						s = handler(feedback)
+						feedback.s = handler(feedback)
 					}
-					fieldError.Feedbacks = append(fieldError.Feedbacks, s)
+					fieldError.Feedbacks = append(fieldError.Feedbacks, feedback)
 				default:
 					return err
 				}
@@ -109,20 +112,13 @@ func (self *Engine) validateField(fieldTyp reflect.StructField, structVal reflec
 		}
 	}
 	if len(fieldError.Feedbacks) > 0 {
-		if feedback, ok := fieldTyp.Tag.Lookup(self.feedbackTagName); ok {
-			fieldError.Feedbacks = []string{feedback}
-		}
-		return &fieldError
+		return fieldError
 	}
 	return nil
 }
 
 func (self *Engine) SetTagName(name string) {
 	self.tagName = name
-}
-
-func (self *Engine) SetFeedbackTagName(name string) {
-	self.feedbackTagName = name
 }
 
 func (self *Engine) RegisterValidator(flag string, validator Validator) {

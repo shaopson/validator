@@ -183,28 +183,32 @@ func imgFeedback(v *validator.Feedback) string {
 }
 ```
 
-#### Shortcut
-Using the `feedback` keyword in the structure tag makes it easy to define the validation error message, but this will mask the return information from the specific validator
-```go
-type Form struct {
-	Field string `validate:"len:2-40" feedback:"invalid value"`
-}
-```
-
-
 ### Custom tag keywords
 
 `SetTagName` method can modify the keyword of the validator tag, the default value is `valudate`.
 
 
-`SetFeedbackTagName` method can modify the keyword of the feedback tag, the default value is `feedback`.
+### Feedback translation
+The default feedback message is in English, which can be changed to another language by setting the translator. Currently only Chinese is supported
 
-
-### Chinese feedback
-importing `github.com/shaopson/validator/feedback/hans` overrides the default English validation error return messages
+#### Chinese
+importing `github.com/shaopson/validator/feedback/hans`
 
 ```go
 import "github.com/shaopson/validator"
-import _ "github.com/shaopson/validator/feedback/hans"
+import "github.com/shaopson/validator/feedback/hans"
+
+v := validator.New()
+//Chinese translator
+translator := hans.New()
+
+err := v.Validate(user);
+validationError, ok := err.(*validator.ValidationError);
+if ok {
+    // set translator
+    validationError.SetTranslation(translator)
+    fmt.Print(validationError.Error())
+    fmt.Print(validationError.Map())
+}
 ```
 

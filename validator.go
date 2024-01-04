@@ -12,7 +12,7 @@ import (
 
 type Validator func(*Validation) error
 
-var DefaultValidators = map[string]Validator{
+var defaultValidators = map[string]Validator{
 	"required":  requiredValidator,
 	"len":       lenValidator,
 	"eq":        eqValidator,
